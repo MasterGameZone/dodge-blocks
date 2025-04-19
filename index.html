@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Dodge Blocks</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #000;
+      color: #fff;
+      text-align: center;
+      overflow: hidden;
+      position: relative;
+    }
+    
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background-color: #111;
+      border: 2px solid #fff;
+    }
+    
+    .screen {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      position: relative;
+    }
+    
+    .hidden {
+      display: none;
+    }
+    
+    button {
+      padding: 10px 20px;
+      margin: 10px;
+      font-size: 16px;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+      background-color: #007bff;
+      color: #fff;
+    }
+    
+    button:hover {
+      background-color: #0056b3;
+    }
+    
+    /* New Control Object Styling – initial position removed */
+    #control-object {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      background-color: rgba(0, 123, 255, 0.5);
+      border: 2px solid #007bff;
+      border-radius: 10px;
+      touch-action: none;  /* Prevent default touch behavior */
+      user-select: none;
+      z-index: 2;
+    }
+    #ad-overlay {
+      height: 290px;
+      width: 300px;
+      position: absolute;
+      background-color: white;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      z-index: 99;
+      p {
+        color: #000000;
+        font-size: 13px;
+        position: absolute;
+        bottom: -16px;
+        left: 0;
+        padding: 5px;
+      }
+    }
+      #ad-overlay button {
+        position: absolute;
+        right: -10px;
+        top: -10px;
+        border: 1px solid black;
+        display: block;
+        height: 25px !important;
+        aspect-ratio: 1/1 !important;
+        padding: 0 !important;
+        background-color: white !important;
+        color: black !important;
+        border-radius: 0 !important;
+      }
+
+  </style>
+</head>
+<body>
+  <div id="ad-overlay">
+    <button id="close-start-btn">X</button>
+    <!-- Adsterra Ads Code -->
+    <script type="text/javascript">
+	atOptions = {
+		'key' : 'd1ab09c01ab2e203e3236993dd511f73',
+		'format' : 'iframe',
+		'height' : 250,
+		'width' : 300,
+		'params' : {}
+	};
+</script>
+<script type="text/javascript" src="//www.highperformanceformat.com/d1ab09c01ab2e203e3236993dd511f73/invoke.js"></script>
+    <p>Visiting this small ad helps us to grow and update. Thanks for your support! 💖</p>
+  </div>
+  <!-- Home Page -->
+  <div id="home-screen" class="screen">
+    <h1>Jumping Cube</h1>
+    <button id="start-game">Start Game</button>
+    <button id="how-to-play">How to Play</button>
+  </div>
+  
+  <!-- How to Play Screen -->
+  <div id="instructions-screen" class="screen hidden">
+    <h2>How to Play</h2>
+    <p>Move the cube by dragging the control object. The cube always stays 100px above the control object.</p>
+    <button id="back-to-menu">Back to Menu</button>
+  </div>
+  
+  <!-- Game Screen -->
+  <div id="game-screen" class="screen hidden">
+    <canvas id="game-canvas"></canvas>
+    <!-- New Control Object -->
+    <div id="control-object"></div>
+  </div>
+  
+  <!-- Game Over Screen -->
+  <div id="game-over-screen" class="screen hidden">
+    <h2>Game Over</h2>
+    <p id="final-score">Your Score: 0</p>
+    <button id="restart-game">Restart</button>
+    <button id="back-to-menu-game-over">Back to Menu</button>
+  </div>
+
+  <script>
+    // Screen elements and buttons
+    const homeScreen = document.getElementById('home-screen');
+    const instructionsScreen = document.getElementById('instructions-screen');
+    const gameScreen = document.getElementById('game-screen');
+    const gameOverScreen = document.getElementById('game-over-screen');
+    const finalScoreDisplay = document.getElementById('final-score');
+    const startGameButton = document.getElementById('start-game');
+    const howToPlayButton = document.getElementById('how-to-play');
+    const backToMenuButton = document.getElementById('back-to-menu');
+    const backToMenuGameOverButton = document.getElementById('back-to-menu-game-over');
+    const restartGameButton = document.getElementById('restart-game');
+    const adOverlay = document.getElementById('ad-overlay');
+    const closeBtn = document.getElementById('close-start-btn');
+
+    
+    // Canvas setup
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const aspectRatioWidth = 360;
+    const aspectRatioHeight = 640;
+    canvas.width = aspectRatioWidth;
+    canvas.height = aspectRatioHeight;
+    
+    // Game objects
+    let cube = { 
+      x: canvas.width / 2 - 15, 
+      y: canvas.height - 150, // initial y (will be updated based on control object)
+      size: 30
+    };
+    
+    // Use consistent control object size
+    let controlObj = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      size: 40
+    };
+    
+    let obstacles = [];
+    let score = 0;
+    let speed = 2;
+    let gameOver = false;
+    
+    // Remove keyboard and joystick event listeners.
+    // Add touch events for control-object.
+    const controlObjectEl = document.getElementById('control-object');
+    
+    let isDragging = false;
+    let dragOffset = { x: 0, y: 0 };
+    
+    // Touch start: calculate offset without any transform interference.
+    controlObjectEl.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      isDragging = true;
+      const touch = e.touches[0];
+      const rect = controlObjectEl.getBoundingClientRect();
+      dragOffset.x = touch.clientX - rect.left;
+      dragOffset.y = touch.clientY - rect.top;
+    });
+    
+    // Touch move: calculate new position based on canvas boundaries.
+    controlObjectEl.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      let newLeft = touch.clientX - dragOffset.x;
+      let newTop = touch.clientY - dragOffset.y;
+      
+      // Get canvas boundaries in viewport coordinates.
+      const canvasRect = canvas.getBoundingClientRect();
+      
+      // Constrain newLeft and newTop within the canvas boundaries.
+      if (newLeft < canvasRect.left) newLeft = canvasRect.left;
+      if (newTop < canvasRect.top) newTop = canvasRect.top;
+      if (newLeft + controlObj.size > canvasRect.left + canvas.width) {
+        newLeft = canvasRect.left + canvas.width - controlObj.size;
+      }
+      if (newTop + controlObj.size > canvasRect.top + canvas.height) {
+        newTop = canvasRect.top + canvas.height - controlObj.size;
+      }
+      
+      // Update controlObj logical coordinates relative to canvas.
+      controlObj.x = newLeft - canvasRect.left + controlObj.size / 2;
+      controlObj.y = newTop - canvasRect.top + controlObj.size / 2;
+      
+      // Set the element's style using viewport coordinates.
+      controlObjectEl.style.left = newLeft + "px";
+      controlObjectEl.style.top = newTop + "px";
+    });
+    
+    controlObjectEl.addEventListener('touchend', () => {
+      isDragging = false;
+    });
+    
+    controlObjectEl.addEventListener('touchcancel', () => {
+      isDragging = false;
+    });
+    
+    // Button event listeners for navigation
+    startGameButton.addEventListener('click', startGame);
+    howToPlayButton.addEventListener('click', showInstructions);
+    backToMenuButton.addEventListener('click', returnToMenu);
+    backToMenuGameOverButton.addEventListener('click', returnToMenu);
+    restartGameButton.addEventListener('click', restartGame);
+    closeBtn.addEventListener('click', realRestartGame);
+    
+    function startGame() {
+      homeScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+      resetGame();
+      gameLoop();
+    }
+    
+    function showInstructions() {
+      homeScreen.classList.add('hidden');
+      instructionsScreen.classList.remove('hidden');
+    }
+    
+    function returnToMenu() {
+      instructionsScreen.classList.add('hidden');
+      gameOverScreen.classList.add('hidden');
+      homeScreen.classList.remove('hidden');
+    }
+    
+    function realRestartGame() {
+      adOverlay.style.display = 'none';
+      gameOverScreen.classList.add('hidden');
+      gameScreen.classList.remove('hidden');
+      resetGame();
+      gameLoop();
+    }
+    function restartGame() {
+      adOverlay.style.display = 'block';
+    }
+    
+    function resetGame() {
+      cube = { 
+        x: canvas.width / 2 - 15, 
+        y: canvas.height - 150, 
+        size: 30
+      };
+      // Reset control object to canvas center.
+      controlObj = {
+        x: canvas.width / 2,
+        y: canvas.height / 2,
+        size: 40
+      };
+      
+      // Position the control object inside canvas using its bounding rectangle.
+      const canvasRect = canvas.getBoundingClientRect();
+      const initLeft = canvasRect.left + (canvas.width - controlObj.size) / 2;
+      const initTop = canvasRect.top + (canvas.height - controlObj.size) / 2;
+      controlObjectEl.style.left = initLeft + "px";
+      controlObjectEl.style.top = initTop + "px";
+      
+      obstacles = [];
+      score = 0;
+      speed = 2.5;
+      gameOver = false;
+    }
+    
+    function gameLoop() {
+      if (gameOver) return;
+      
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      
+      // Update player's position:
+      // Player's x is same as controlObj's x (centered) and y is 100px above it.
+      cube.x = controlObj.x - cube.size / 2;
+      cube.y = controlObj.y - 100 - cube.size / 2;
+      
+      // Draw the player cube.
+      ctx.fillStyle = '#007bff';
+      ctx.fillRect(cube.x, cube.y, cube.size, cube.size);
+      
+      // Generate obstacles randomly.
+      if (Math.random() < 0.02) {
+        const size = Math.random() * 50 + 20;
+        const x = Math.random() * (canvas.width - size);
+        obstacles.push({ x, y: 0, size });
+      }
+      
+      // Draw obstacles and check for collisions.
+      ctx.fillStyle = '#ff0000';
+      obstacles.forEach((obstacle, index) => {
+        obstacle.y += speed;
+        ctx.fillRect(obstacle.x, obstacle.y, obstacle.size, obstacle.size);
+        
+        if (
+          cube.x < obstacle.x + obstacle.size &&
+          cube.x + cube.size > obstacle.x &&
+          cube.y < obstacle.y + obstacle.size &&
+          cube.y + cube.size > obstacle.y
+        ) {
+          gameOver = true;
+          endGame();
+        }
+        
+        if (obstacle.y > canvas.height) {
+          obstacles.splice(index, 1);
+          score++;
+        }
+      });
+      
+      // Increase speed gradually.
+      speed = Math.min(5, speed + 0.0025);
+      
+      // Draw score.
+      ctx.fillStyle = '#fff';
+      ctx.font = '20px Arial';
+      ctx.fillText(`Score: ${score}`, 10, 30);
+      
+      requestAnimationFrame(gameLoop);
+    }
+    
+    function endGame() {
+      finalScoreDisplay.textContent = `Your Score: ${score}`;
+      gameScreen.classList.add('hidden');
+      gameOverScreen.classList.remove('hidden');
+    }
+  </script>
+</body>
+</html>
