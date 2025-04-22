@@ -155,6 +155,7 @@
     let shieldTimer = null;
     const shieldDuration = 3000;
     const maxShields = 3;
+    let invincibleStartTime = 0;
 
     // Double-click detection variables
     let lastTap = 0;
@@ -223,6 +224,22 @@
       const rect = controlObjectEl.getBoundingClientRect();
       dragOffset.x = touch.clientX - rect.left;
       dragOffset.y = touch.clientY - rect.top;
+
+      // Double-tap detection
+      const now = Date.now();
+      if (now - lastTap < doubleTapThreshold) {
+        if (shields > 0 && !invincible) {
+          invincible = true;
+          invincibleStartTime = now;
+          shields--;
+          updateShieldUI();
+          clearTimeout(shieldTimer);
+          shieldTimer = setTimeout(() => {
+            invincible = false;
+          }, shieldDuration);
+        }
+      }
+      lastTap = now;
     });
 
     controlObjectEl.addEventListener('touchmove', (e) => {
@@ -256,23 +273,6 @@
 
     controlObjectEl.addEventListener('touchcancel', () => {
       isDragging = false;
-    });
-
-    // Double-tap detection for shield activation
-    canvas.addEventListener('touchstart', (e) => {
-      const now = Date.now();
-      if (now - lastTap < doubleTapThreshold) {
-        if (shields > 0 && !invincible) {
-          invincible = true;
-          shields--;
-          updateShieldUI();
-          clearTimeout(shieldTimer);
-          shieldTimer = setTimeout(() => {
-            invincible = false;
-          }, shieldDuration);
-        }
-      }
-      lastTap = now;
     });
 
     // Button event listeners
@@ -347,8 +347,19 @@
       cube.x = controlObj.x - cube.size / 2;
       cube.y = controlObj.y - 100 - cube.size / 2;
 
-      ctx.fillStyle = '#007bff';
+      // Draw player with glow effect
+      ctx.save();
+      if (invincible) {
+        const elapsed = Date.now() - invincibleStartTime;
+        const pulse = Math.sin(elapsed / 100) * 5 + 15; // Pulsating glow
+        ctx.shadowBlur = pulse;
+        ctx.shadowColor = 'cyan';
+        ctx.fillStyle = '#00ffff';
+      } else {
+        ctx.fillStyle = '#007bff';
+      }
       ctx.fillRect(cube.x, cube.y, cube.size, cube.size);
+      ctx.restore();
 
       if (Math.random() < 0.02) {
         const size = Math.random() * 50 + 20;
@@ -372,7 +383,7 @@
         }
       });
 
-      speed = Math.min(3, speed + 0.01);
+      speed = Math.min(5, speed + 0.01);
       ctx.fillStyle = '#fff';
       ctx.font = '20px Arial';
       ctx.fillText(`Score: ${score}`, 10, 30);
