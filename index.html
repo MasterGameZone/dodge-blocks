@@ -200,6 +200,7 @@
     let score = 0;
     let speed = 5;
     let gameOver = false;
+    let lastForcedSpawn = 0; // Track time since last forced spawn
 
     // Shield UI initialization
     function updateShieldUI() {
@@ -332,6 +333,14 @@
       controlObjectEl.style.left = initLeft + "px";
       controlObjectEl.style.top = initTop + "px";
       obstacles = [];
+  
+  // Add 3 initial obstacles with staggered positions
+  for (let i = 0; i < 4; i++) {
+    const size = Math.random() * 50 + 20;
+    const x = Math.random() * (canvas.width - size);
+    const y = -i * 100; // Start above the screen for staggered entry
+    obstacles.push({ x, y, size });
+  }
       score = 0;
       speed = 3;
       gameOver = false;
@@ -362,10 +371,20 @@
       ctx.restore();
 
       if (Math.random() < 0.02) {
-        const size = Math.random() * 50 + 20;
-        const x = Math.random() * (canvas.width - size);
-        obstacles.push({ x, y: 0, size });
-      }
+    const size = Math.random() * 50 + 20;
+    const x = Math.random() * (canvas.width - size);
+    obstacles.push({ x, y: 0, size });
+  }
+
+  // Force-spawn obstacles if below 3 (cooldown: 1 second)
+  const now = Date.now();
+  if (obstacles.length < 5 && now - lastForcedSpawn > 1000) {
+    const size = Math.random() * 50 + 20;
+    const x = Math.random() * (canvas.width - size);
+    obstacles.push({ x, y: 0, size });
+    lastForcedSpawn = now;
+  }
+
 
       ctx.fillStyle = '#ff0000';
       obstacles.forEach((obstacle, index) => {
