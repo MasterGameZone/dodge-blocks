@@ -174,6 +174,8 @@
     const restartGameButton = document.getElementById('restart-game');
     const adOverlay = document.getElementById('ad-overlay');
     const closeBtn = document.getElementById('close-start-btn');
+    const playerImage = new Image();
+    playerImage.src = 'fighter-jet.png'; // Replace with the correct path to your PNG file
 
     // Canvas setup
     const canvas = document.getElementById('game-canvas');
@@ -320,7 +322,7 @@
       cube = { 
         x: canvas.width / 2 - 15, 
         y: canvas.height - 150, 
-        size: 30
+        size: 50
       };
       controlObj = {
         x: canvas.width / 2,
@@ -350,26 +352,27 @@
     }
 
     function gameLoop() {
-      if (gameOver) return;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (gameOver) return;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      cube.x = controlObj.x - cube.size / 2;
-      cube.y = controlObj.y - 100 - cube.size / 2;
+  // Update player position based on control object
+  cube.x = controlObj.x - cube.size / 2;
+  cube.y = controlObj.y - 100 - cube.size / 2;
 
-      // Draw player with glow effect
-      ctx.save();
-      if (invincible) {
-        const elapsed = Date.now() - invincibleStartTime;
-        const pulse = Math.sin(elapsed / 100) * 5 + 15; // Pulsating glow
-        ctx.shadowBlur = pulse;
-        ctx.shadowColor = 'cyan';
-        ctx.fillStyle = '#00ffff';
-      } else {
-        ctx.fillStyle = '#007bff';
-      }
-      ctx.fillRect(cube.x, cube.y, cube.size, cube.size);
-      ctx.restore();
+  // Draw player with glow effect
+  ctx.save();
+  if (invincible) {
+    const elapsed = Date.now() - invincibleStartTime;
+    const pulse = Math.sin(elapsed / 100) * 5 + 15; // Pulsating glow
+    ctx.shadowBlur = pulse;
+    ctx.shadowColor = 'cyan';
+  }
 
+  // Draw the PNG image for the player
+  ctx.drawImage(playerImage, cube.x, cube.y, cube.size, cube.size);
+  ctx.restore();
+
+  // Rest of the game loop remains unchanged..
       if (Math.random() < 0.02) {
     const size = Math.random() * 50 + 20;
     const x = Math.random() * (canvas.width - size);
